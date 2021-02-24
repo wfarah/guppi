@@ -33,7 +33,7 @@ class Guppi():
         while not hread.startswith("END"):
             if return_raw:
                 raw_header += hread
-            key, val = hread.split("=")
+            key, val = hread.split("=", 1)
             key = key.strip()
             val = val.strip()
 
