@@ -83,9 +83,9 @@ class Guppi():
             raise NotImplementedError("Only 4 and 8-bit data are implemented")
 
         data_raw = np.fromfile(self.file, dtype=np.int8, count=blocsize)
+        data = np.zeros_like(data_raw, dtype=np.complex64)
 
         if nbits == 4:
-            data = np.zeros_like(data_raw, dtype=np.complex64)
             data[:] = (data_raw >> 4) + 1j*(data_raw << 4 >> 4)
 
         elif nbits == 8:
