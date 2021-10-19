@@ -91,7 +91,7 @@ class Guppi():
 
         elif nbits == 8:
             # every 2 samples is a complex number (8bit + 8bit) => complex64
-            data = np.zeros(size=data_raw.size//2, dtype=np.complex64)
+            data = np.zeros(shape=data_raw.size//2, dtype=np.complex64)
             data[:] = data_raw[::2] + 1j*data_raw[1::2]
 
         nsamps_per_block = int(blocsize / (2*npol * obsnchan * (nbits/8)))
