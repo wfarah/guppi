@@ -89,7 +89,7 @@ class Guppi():
             data[:] = (data_raw >> 4) + 1j*(data_raw << 4 >> 4)
 
         elif nbits == 8:
-            data = data_raw[::2] + 1j*data_raw[1::2]
+            data[:] = data_raw[::2] + 1j*data_raw[1::2]
 
         nsamps_per_block = int(blocsize / (2*npol * obsnchan * (nbits/8)))
 
