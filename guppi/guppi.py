@@ -79,12 +79,17 @@ class Guppi():
         except KeyError as e:
             nants = -1
 
-        if nbits != 4:
-            raise NotImplementedError("Only 4-bit data is implemented")
+        if nbits not in [4, 8]:
+            raise NotImplementedError("Only 4 and 8-bit data are implemented")
 
         data_raw = np.fromfile(self.file, dtype=np.int8, count=blocsize)
-        data = np.zeros_like(data_raw, dtype=np.complex64)
-        data[:] = (data_raw >> 4) + 1j*(data_raw << 4 >> 4)
+
+        if nbits == 4:
+            data = np.zeros_like(data_raw, dtype=np.complex64)
+            data[:] = (data_raw >> 4) + 1j*(data_raw << 4 >> 4)
+
+        elif nbits == 8:
+            data = data_raw[::2] + 1j*data_raw[1::2]
 
         nsamps_per_block = int(blocsize / (2*npol * obsnchan * (nbits/8)))
 
