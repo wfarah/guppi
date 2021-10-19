@@ -83,12 +83,15 @@ class Guppi():
             raise NotImplementedError("Only 4 and 8-bit data are implemented")
 
         data_raw = np.fromfile(self.file, dtype=np.int8, count=blocsize)
-        data = np.zeros_like(data_raw, dtype=np.complex64)
 
         if nbits == 4:
+            # every 1 sample is a complex number (4bit + 4bit) = (8bit) => complex64
+            data = np.zeros_like(data_raw, dtype=np.complex64)
             data[:] = (data_raw >> 4) + 1j*(data_raw << 4 >> 4)
 
         elif nbits == 8:
+            # every 2 samples is a complex number (8bit + 8bit) => complex64
+            data = np.zeros(size=data_raw.size//2, dtype=np.complex64)
             data[:] = data_raw[::2] + 1j*data_raw[1::2]
 
         nsamps_per_block = int(blocsize / (2*npol * obsnchan * (nbits/8)))
