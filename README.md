@@ -11,4 +11,4 @@ hdr, data = gfile.read_next_block() #data.shape = [Nants, Nchan, Ntime, Npol]
 ```
 
 ## Installation:
-A `pip install .` after cloning the directory is sufficient to install the library
+A `pip install .` after cloning the repository is sufficient to install the library
