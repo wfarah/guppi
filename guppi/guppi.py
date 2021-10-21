@@ -14,8 +14,42 @@ class Guppi():
         self.fname = fname
         self.file  = open(fname, "rb")
 
+        # parse the header of the first block
+        header = self._parse_header()
+
+        self.npol      = header['NPOL']
+        self.obsnchan  = header['OBSNCHAN']
+        self.nbits     = header['NBITS']
+        self.blocsize  = header['BLOCSIZE']
+        try:
+            self.nants = header['NANTS']
+        except:
+            self.nants = -1
+
+        if self.nbits not in [4,8]:
+            raise NotImplementedError("Only 4 and 8-bit data are implemented")
+
+        self.data_raw = np.zeros(self.blocsize, dtype=np.int8)
+        if self.nbits == 4:
+            self.data = np.zeros_like(self.data_raw, dtype=np.complex64)
+        elif self.nbits == 8:
+            self.data = np.zeros(shape=self.data_raw.size//2, dtype=np.complex64)
+
+        if self.nants != -1:
+            self.nchan_per_ant    = self.obsnchan//self.nants
+
+        self.nsamps_per_block = int(self.blocsize /
+                (2*self.npol * self.obsnchan * (self.nbits/8)))
+
+        self._reset_file()
+
+
     def __del__(self):
         self.file.close()
+
+    def _reset_file(self):
+        # seek back to the start of the file
+        self.file.seek(0)
 
     #@jit(nopython=True)
     def _parse_header(self, return_raw=False):
@@ -64,12 +98,8 @@ class Guppi():
             return raw_header, header
         return header
 
-    #@jit(nopython=True)
-    def read_next_block(self, complex64=True):
-        header = self._parse_header()
-        if not header:
-            return None, None
 
+    def _check_consistency(self, header):
         npol     = header['NPOL']
         obsnchan = header['OBSNCHAN']
         nbits    = header['NBITS']
@@ -82,17 +112,11 @@ class Guppi():
         if nbits not in [4, 8]:
             raise NotImplementedError("Only 4 and 8-bit data are implemented")
 
-        data_raw = np.fromfile(self.file, dtype=np.int8, count=blocsize)
-
-        if nbits == 4:
-            # every 1 sample is a complex number (4bit + 4bit) = (8bit) => complex64
-            data = np.zeros_like(data_raw, dtype=np.complex64)
-            data[:] = (data_raw >> 4) + 1j*(data_raw << 4 >> 4)
-
-        elif nbits == 8:
-            # every 2 samples is a complex number (8bit + 8bit) => complex64
-            data = np.zeros(shape=data_raw.size//2, dtype=np.complex64)
-            data[:] = data_raw[::2] + 1j*data_raw[1::2]
+        assert npol     == self.npol
+        assert obsnchan == self.obsnchan
+        assert nbits    == self.nbits
+        assert blocsize == self.blocsize
+        assert nants    == self.nants
 
         nsamps_per_block = int(blocsize / (2*npol * obsnchan * (nbits/8)))
 
@@ -100,7 +124,7 @@ class Guppi():
             raise RuntimeError("Bad block geometry: 2*%i*%i*%f*%i != %i"\
                     %(npol, obsnchan, nbits/8, nsamps_per_block, blocsize))
 
-        if nants != -1: # "multi-antenna" raw file
+        if self.nants != -1:
             nchan_per_ant    = obsnchan//nants
 
             if (nchan_per_ant * nants) != obsnchan:
@@ -108,17 +132,41 @@ class Guppi():
                         "obsnchan: %i, nants: %i, nchan_per_ant: %i",
                         obsnchan, nants, nchan_per_ant)
 
-            data = data.reshape(nants, nchan_per_ant, nsamps_per_block, npol)
+
+
+    #@jit(nopython=True)
+    def read_next_block(self, complex64=True):
+        header = self._parse_header()
+        if not header:
+            return None, None
+
+        self._check_consistency(header)
+
+        self.data_raw[:] = np.fromfile(self.file, dtype=np.int8, count=self.blocsize)
+
+        if self.nbits == 4:
+            # every 1 sample is a complex number (4bit + 4bit) = (8bit) => complex64
+            self.data[:] = (self.data_raw >> 4) + 1j*(self.data_raw << 4 >> 4)
+
+        elif self.nbits == 8:
+            # every 2 samples is a complex number (8bit + 8bit) => complex64
+            self.data[:] = self.data_raw.astype(np.float32).view(np.complex64)
+
+
+        if self.nants != -1: # "multi-antenna" raw file
+            self.data_reshaped = self.data.reshape(self.nants,
+                    self.nchan_per_ant, self.nsamps_per_block, self.npol)
         else:
-            data = data.reshape(obsnchan, nsamps_per_block, npol)
+            self.data_reshaped = self.data.reshape(self.obsnchan,
+                    self.nsamps_per_block, self.npol)
 
         if header['DIRECTIO']:
-            remainder = blocsize % DIRECT_IO_SIZE
+            remainder = self.blocsize % DIRECT_IO_SIZE
             to_seek = (DIRECT_IO_SIZE - remainder)%DIRECT_IO_SIZE
             if to_seek:
                 _ = self.file.read(to_seek)
 
-        return header, data
+        return header, self.data_reshaped
 
 
 
