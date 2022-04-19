@@ -26,16 +26,30 @@ class Guppi():
         except:
             self.nants = -1
 
-        if self.nbits not in [4,8]:
-            raise NotImplementedError("Only 4 and 8-bit data are implemented")
+        try:
+            self.nbeams = header['NBEAMS']
+        except:
+            self.nbeams = -1
 
-        self.data_raw = np.zeros(self.blocsize, dtype=np.int8)
+        if self.nbits not in [4,8,16]:
+            raise NotImplementedError("Only 4,8 and 16-bit data are implemented")
+
         if self.nbits == 4:
+            self.data_raw = np.zeros(self.blocsize, dtype=np.int8)
             self.data = np.zeros_like(self.data_raw, dtype=np.complex64)
         elif self.nbits == 8:
+            self.data_raw = np.zeros(self.blocsize, dtype=np.int8)
+            self.data = np.zeros(shape=self.data_raw.size//2, dtype=np.complex64)
+        elif self.nbits == 16:
+            import warnings
+            warnings.warn("Interpretting 16-bit data as float16, and not int16!!")
+            self.data_raw = np.zeros(self.blocsize//2, dtype=np.float16)
             self.data = np.zeros(shape=self.data_raw.size//2, dtype=np.complex64)
 
-        if self.nants != -1:
+        if self.nbeams != -1:
+            self.nchan_per_ant   = self.obsnchan//self.nbeams
+
+        if self.nants != -1 and self.nbeams == -1:
             self.nchan_per_ant    = self.obsnchan//self.nants
 
         self.nsamps_per_block = int(self.blocsize /
@@ -109,14 +123,20 @@ class Guppi():
         except KeyError as e:
             nants = -1
 
-        if nbits not in [4, 8]:
-            raise NotImplementedError("Only 4 and 8-bit data are implemented")
+        try:
+            nbeams = header['NBEAMS']
+        except KeyError as e:
+            nbeams = -1
+
+        if nbits not in [4, 8, 16]:
+            raise NotImplementedError("Only 4,8 and 16-bit data are implemented")
 
         assert npol     == self.npol
         assert obsnchan == self.obsnchan
         assert nbits    == self.nbits
         assert blocsize == self.blocsize
         assert nants    == self.nants
+        assert nbeams   == self.nbeams
 
         nsamps_per_block = int(blocsize / (2*npol * obsnchan * (nbits/8)))
 
@@ -124,7 +144,15 @@ class Guppi():
             raise RuntimeError("Bad block geometry: 2*%i*%i*%f*%i != %i"\
                     %(npol, obsnchan, nbits/8, nsamps_per_block, blocsize))
 
-        if self.nants != -1:
+        if self.nbeams != -1:
+            nchan_per_beam = obsnchan // nbeams
+            if (nchan_per_beam * nbeams) != obsnchan:
+                raise RuntimeError("obsnchan does not equally divide across antennas: "\
+                        "obsnchan: %i, nants: %i, nchan_per_ant: %i",
+                        obsnchan, nants, nchan_per_ant)
+
+
+        if self.nants != -1 and self.nbeams == -1:
             nchan_per_ant    = obsnchan//nants
 
             if (nchan_per_ant * nants) != obsnchan:
@@ -142,18 +170,30 @@ class Guppi():
 
         self._check_consistency(header)
 
-        self.data_raw[:] = np.fromfile(self.file, dtype=np.int8, count=self.blocsize)
-
         if self.nbits == 4:
+            self.data_raw[:] = np.fromfile(self.file, dtype=np.int8,
+                    count=self.blocsize)
             # every 1 sample is a complex number (4bit + 4bit) = (8bit) => complex64
             self.data[:] = (self.data_raw >> 4) + 1j*(self.data_raw << 4 >> 4)
 
         elif self.nbits == 8:
+            self.data_raw[:] = np.fromfile(self.file, dtype=np.int8,
+                    count=self.blocsize)
             # every 2 samples is a complex number (8bit + 8bit) => complex64
             self.data[:] = self.data_raw.astype(np.float32).view(np.complex64)
 
+        elif self.nbits == 16:
+            self.data_raw[:] = np.fromfile(self.file, dtype=np.float16,
+                    count=self.blocsize//2)
+            # every 1 sample is a 16bit float
+            self.data[:] = self.data_raw[::2] + 1j*self.data_raw[1::2]
 
-        if self.nants != -1: # "multi-antenna" raw file
+
+        if self.nbeams != -1:
+            self.data_reshaped = self.data.reshape(self.nbeams,
+                    self.nchan_per_ant, self.nsamps_per_block, self.npol)
+
+        if self.nants != -1 and self.nbeams == -1: # "multi-antenna" raw file
             self.data_reshaped = self.data.reshape(self.nants,
                     self.nchan_per_ant, self.nsamps_per_block, self.npol)
         else:
