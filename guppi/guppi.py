@@ -162,7 +162,6 @@ class Guppi():
 
 
 
-    #@jit(nopython=True)
     def read_next_block(self, complex64=True):
         header = self._parse_header()
         if not header:
@@ -185,9 +184,7 @@ class Guppi():
         elif self.nbits == 16:
             self.data_raw[:] = np.fromfile(self.file, dtype=np.float16,
                     count=self.blocsize//2)
-            # every 1 sample is a 16bit float
-            self.data[:] = self.data_raw[::2] + 1j*self.data_raw[1::2]
-
+            self.data = self.data_raw.astype(np.float32).view(np.complex64)
 
         if self.nbeams != -1:
             self.data_reshaped = self.data.reshape(self.nbeams,
@@ -207,8 +204,6 @@ class Guppi():
                 _ = self.file.read(to_seek)
 
         return header, self.data_reshaped
-
-
 
 
     def _read_next_block_4bit_to_8bit(self):
