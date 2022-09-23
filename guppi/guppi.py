@@ -182,7 +182,7 @@ class Guppi():
             self.data[:] = self.data_raw.astype(np.float32).view(np.complex64)
 
         elif self.nbits == 16:
-            self.data_raw[:] = np.fromfile(self.file, dtype=np.float16,
+            self.data_raw = np.fromfile(self.file, dtype=np.float16,
                     count=self.blocsize//2)
             self.data = self.data_raw.astype(np.float32).view(np.complex64)
 
