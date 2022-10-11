@@ -100,7 +100,7 @@ class Guppi():
         assert hread == "END"+" "*77, "Not a GUPPI RAW format"
         if return_raw:
             raw_header += hread
-        if header['DIRECTIO']:
+        if header.get('DIRECTIO', False):
             remainder = nbytes_read % DIRECT_IO_SIZE
             to_seek = (DIRECT_IO_SIZE - remainder)%DIRECT_IO_SIZE
             tmp_direct_io = self.file.read(to_seek).decode('UTF-8')
@@ -197,7 +197,7 @@ class Guppi():
             self.data_reshaped = self.data.reshape(self.obsnchan,
                     self.nsamps_per_block, self.npol)
 
-        if header['DIRECTIO']:
+        if header.get('DIRECTIO', False):
             remainder = self.blocsize % DIRECT_IO_SIZE
             to_seek = (DIRECT_IO_SIZE - remainder)%DIRECT_IO_SIZE
             if to_seek:
