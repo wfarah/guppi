@@ -201,6 +201,43 @@ class Guppi():
 
         return raw_header, header, data
 
+    @staticmethod
+    def write_to_file(
+        filepath: str,
+        header: dict,
+        datablock: np.ndarray,
+        file_open_mode: str = "ab"
+    ):
+        A, F, T, P = datablock.shape
+        header["OBSNCHAN"] = A*F
+        header["NANTS"] = A
+        header["NCHAN"] = F
+        header["NPOL"] = P
+        header["PIPERBLK"] = header.get("PIPERBLK", T)
+        datablock_bytes = datablock.tobytes()
+        header["BLOCSIZE"] = datablock_bytes
+        header["NBITS"] = (datablock_bytes*8)//(len(datablock)*2)
+
+        header_str = "".join(
+            f"{key[:8]}={str(value)[:71]}"
+            for key, value in header.items()
+        )
+        header_str += "END                                                                             "
+        directio = False
+        if header.get("DIRECTIO", False):
+            directio = True
+        
+        with open(filepath, file_open_mode) as fio:
+            fio.write(header_str)
+            if directio:
+                header_len = len(header_str)
+                padded_len = ((header_len + 511) // 512) * 512
+                fio.write("*"*(padded_len - header_len))
+
+            bytes_written = fio.write(datablock_bytes)
+            if directio:
+                padded_len = ((bytes_written + 511) // 512) * 512
+                fio.write(" "*(padded_len - bytes_written))
 
 
 def convert_4bit_to_8bit(fname, outfile):
