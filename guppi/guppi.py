@@ -219,7 +219,7 @@ class Guppi():
         header["NBITS"] = (len(datablock_bytes)*8)//(np.prod(datablock.shape)*2)
 
         header_str = "".join(
-            f"{key[:8]}={str(value)[:71]:71s}"
+            f"{key[:8]:8s}={str(value)[:71]:71s}"
             for key, value in header.items()
         )
         header_str += "END                                                                             "
