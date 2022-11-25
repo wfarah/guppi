@@ -202,6 +202,11 @@ class Guppi():
         return raw_header, header, data
 
     @staticmethod
+    def _keyvalue_to_fits(key, value):
+        v = str(value) if not isinstance(value, str) else f"\'{value[:69]}\'"
+        return f"{key[:8]:8s}={v[:71]:71s}"
+
+    @staticmethod
     def write_to_file(
         filepath: str,
         header: dict,
@@ -219,7 +224,7 @@ class Guppi():
         header["NBITS"] = (len(datablock_bytes)*8)//(np.prod(datablock.shape)*2)
 
         header_str = "".join(
-            f"{key[:8]:8s}={str(value)[:71]:71s}"
+            Guppi._keyvalue_to_fits(key, value)
             for key, value in header.items()
         )
         header_str += "END                                                                             "
