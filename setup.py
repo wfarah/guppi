@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
         name="guppi",
-        version="1.0.0",
+        version="1.0.1",
         author="Wael Farah",
         author_email="wael.a.farah@gmail.com",
         url='',
